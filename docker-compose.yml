@@ -1,0 +1,84 @@
+name: jarvis-hub
+
+# Keep container logs from filling the 228 GB root filesystem.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # DNS + ad blocking. Container listens on 80 internally; host maps 8080.
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    hostname: pihole
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+      - "53:53/tcp"
+      - "53:53/udp"
+    environment:
+      TZ: ${TZ:-Asia/Kolkata}
+      # Pi-hole v6 uses FTLCONF_* names. WEB_PASSWORD/WEB_PORT are v5-only.
+      FTLCONF_webserver_api_password: ${PIHOLE_PASSWORD:?set PIHOLE_PASSWORD in .env}
+      FTLCONF_webserver_port: "80"
+      # Required when using Docker's default bridge network.
+      FTLCONF_dns_listeningMode: "ALL"
+      # Makes the mounted /etc/dnsmasq.d directory active.
+      FTLCONF_misc_etc_dnsmasq_d: "true"
+      FTLCONF_dns_upstreams: "1.1.1.1;8.8.8.8"
+    # Do not let Pi-hole use the host's 127.0.0.1 resolver (loop risk).
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    volumes:
+      - ./pihole/etc-pihole:/etc/pihole
+      - ./pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+    mem_limit: 256m
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging: *default-logging
+
+  # Media server. host networking exposes 8096 directly and avoids NAT overhead.
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: ${TZ:-Asia/Kolkata}
+      JELLYFIN_PublishedServerUrl: ${JELLYFIN_URL:-}
+    volumes:
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
+      - /srv/media:/media
+    mem_limit: 1024m
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+    logging: *default-logging
+
+  # Web file manager. Image runs as UID/GID 1000 and serves /srv.
+  filebrowser:
+    image: filebrowser/filebrowser:v2-alpine
+    container_name: filebrowser
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    # v2.11.0 defaults to /.filebrowser.json and /database.db; point it at ours.
+    command: ["-c", "/config/settings.json", "-d", "/database/filebrowser.db"]
+    ports:
+      - "8081:80"
+    volumes:
+      - /srv/media:/srv
+      - ./filebrowser/filebrowser.db:/database/filebrowser.db
+      - ./filebrowser/settings.json:/config/settings.json:ro
+    mem_limit: 128m
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    logging: *default-logging

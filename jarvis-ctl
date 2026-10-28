@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Control a running Jarvis instance without loading the GUI.
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+export PATH="${HOME}/.local/bin:${HOME}/.opencode/bin:${ROOT}/venv/bin:/usr/local/bin:/usr/bin:/bin"
+exec "$ROOT/venv/bin/python" "$ROOT/scripts/jarvis_ctl.py" "$@"

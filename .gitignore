@@ -1,0 +1,27 @@
+# Secrets and machine-local settings
+.env
+config/settings.json
+config/google_oauth_client.json
+
+# Python environment and generated files
+venv/
+venv-windows/
+__pycache__/
+*.py[cod]
+vendor/piper/windows/
+/models/whisper/
+
+# Private runtime data and logs
+data/logs/
+data/cache/
+data/exports/
+data/backups/
+data/state/
+data/notes/notes.json
+data/notes/markdown/
+
+# Local media-server and network-service state
+filebrowser/*.db
+jellyfin/config/
+jellyfin/cache/
+pihole/etc-pihole/
